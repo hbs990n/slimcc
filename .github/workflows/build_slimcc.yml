@@ -15,8 +15,12 @@ jobs:
           ln -s platform/linux-glibc-generic.c platform.c
           make
 
+      - name: Check output files
+        run: ls -la   # 这一步会把当前目录所有文件列出来，你可以在日志里看看 slimcc 到底在哪
+
       - name: Upload slimcc binary
         uses: actions/upload-artifact@v4
         with:
           name: slimcc-binary
-          path: slimcc   # 假设 make 编译出来的可执行文件叫 slimcc
+          path: slimcc   # 如果上面 ls 看到它不在根目录，或者叫别的名字，请把这里改掉
+          if-no-files-found: error   # 如果找不到文件直接报错，方便排查
