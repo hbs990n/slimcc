@@ -1,0 +1,22 @@
+name: Build Slimcc
+
+on:
+  workflow_dispatch:   # 允许你手动点击按钮触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build slimcc
+        run: |
+          ln -s platform/linux-glibc-generic.c platform.c
+          make
+
+      - name: Upload slimcc binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: slimcc-binary
+          path: slimcc   # 假设 make 编译出来的可执行文件叫 slimcc
