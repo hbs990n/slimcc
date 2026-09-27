@@ -1,10 +1,10 @@
-name: Analyze Slimcc Structure
+name: Build and Package Portable Slimcc
 
 on:
   workflow_dispatch:   # 手动触发
 
 jobs:
-  analyze:
+  build:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
@@ -13,34 +13,44 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y make binutils tree
+          sudo apt-get install -y make binutils
 
       - name: Build slimcc
         run: |
           ln -s platform/linux-glibc-generic.c platform.c
           make
 
-      - name: Generate analysis report
+      - name: Prepare portable package
         run: |
-          echo "===== FILE TREE (with sizes, excluding .git) =====" > analysis_report.txt
-          tree -a -h --du -I '.git' >> analysis_report.txt
+          # 创建干净的目录结构
+          mkdir -p slimcc-portable
           
-          echo -e "\n===== EXECUTABLE FILES =====" >> analysis_report.txt
-          find . -type f -executable -not -path './.git/*' -exec ls -lh {} \; >> analysis_report.txt
+          # 1. 复制核心可执行文件
+          cp slimcc slimcc-portable/
           
-          echo -e "\n===== INCLUDE DIRECTORY =====" >> analysis_report.txt
-          ls -lh include/ >> analysis_report.txt 2>&1 || echo "No include directory found" >> analysis_report.txt
+          # 2. 复制运行时必需的头文件目录
+          cp -r slimcc_headers slimcc-portable/
           
-          echo -e "\n===== SLIMCC BINARY DETAILS =====" >> analysis_report.txt
-          file slimcc >> analysis_report.txt 2>&1 || echo "slimcc not found" >> analysis_report.txt
-          ls -lh slimcc >> analysis_report.txt 2>&1 || true
+          # 3. 复制说明文档和许可证（方便查阅）
+          cp LICENSE README.md slimcc-portable/ 2>/dev/null || true
           
-          echo "----- REPORT START -----"
-          cat analysis_report.txt
-          echo "----- REPORT END -----"
+          # 4. 清理可能产生的无用文件
+          rm -f slimcc-portable/slimcc_headers/platform_fix/*/*.o 2>/dev/null || true
 
-      - name: Upload analysis report
+      - name: Create archive and checksum
+        run: |
+          tar -czvf slimcc-portable.tar.gz slimcc-portable
+          sha256sum slimcc-portable.tar.gz > slimcc-portable.tar.gz.sha256
+          echo "===== PACKAGE CONTENT ====="
+          find slimcc-portable -type f | sort
+          echo "===== ARCHIVE SIZE ====="
+          ls -lh slimcc-portable.tar.gz
+
+      - name: Upload portable package
         uses: actions/upload-artifact@v4
         with:
-          name: analysis-report
-          path: analysis_report.txt
+          name: slimcc-portable
+          path: |
+            slimcc-portable.tar.gz
+            slimcc-portable.tar.gz.sha256
+          if-no-files-found: error
