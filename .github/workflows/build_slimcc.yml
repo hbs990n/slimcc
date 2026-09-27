@@ -1,11 +1,11 @@
-name: Build Slimcc
+name: Analyze Slimcc Structure
 
 on:
-  workflow_dispatch:   # 允许手动点击触发
+  workflow_dispatch:   # 手动触发
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04   # 改用固定版本，避免 ubuntu-latest 排队和迁移问题
+  analyze:
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -13,19 +13,34 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y make binutils
+          sudo apt-get install -y make binutils tree
 
       - name: Build slimcc
         run: |
           ln -s platform/linux-glibc-generic.c platform.c
           make
 
-      - name: Show generated files
-        run: ls -la   # 打印出当前目录结构，方便你检查
+      - name: Generate analysis report
+        run: |
+          echo "===== FILE TREE (with sizes, excluding .git) =====" > analysis_report.txt
+          tree -a -h --du -I '.git' >> analysis_report.txt
+          
+          echo -e "\n===== EXECUTABLE FILES =====" >> analysis_report.txt
+          find . -type f -executable -not -path './.git/*' -exec ls -lh {} \; >> analysis_report.txt
+          
+          echo -e "\n===== INCLUDE DIRECTORY =====" >> analysis_report.txt
+          ls -lh include/ >> analysis_report.txt 2>&1 || echo "No include directory found" >> analysis_report.txt
+          
+          echo -e "\n===== SLIMCC BINARY DETAILS =====" >> analysis_report.txt
+          file slimcc >> analysis_report.txt 2>&1 || echo "slimcc not found" >> analysis_report.txt
+          ls -lh slimcc >> analysis_report.txt 2>&1 || true
+          
+          echo "----- REPORT START -----"
+          cat analysis_report.txt
+          echo "----- REPORT END -----"
 
-      - name: Upload slimcc build tree
+      - name: Upload analysis report
         uses: actions/upload-artifact@v4
         with:
-          name: slimcc-build
-          path: .   # 打包整个当前目录（包含可执行文件、include头文件、platform等）
-          if-no-files-found: error
+          name: analysis-report
+          path: analysis_report.txt
