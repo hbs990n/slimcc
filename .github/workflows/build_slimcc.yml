@@ -1,26 +1,31 @@
 name: Build Slimcc
 
 on:
-  workflow_dispatch:   # 允许你手动点击按钮触发
+  workflow_dispatch:   # 允许手动点击触发
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04   # 改用固定版本，避免 ubuntu-latest 排队和迁移问题
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make binutils
 
       - name: Build slimcc
         run: |
           ln -s platform/linux-glibc-generic.c platform.c
           make
 
-      - name: Check output files
-        run: ls -la   # 这一步会把当前目录所有文件列出来，你可以在日志里看看 slimcc 到底在哪
+      - name: Show generated files
+        run: ls -la   # 打印出当前目录结构，方便你检查
 
-      - name: Upload slimcc binary
+      - name: Upload slimcc build tree
         uses: actions/upload-artifact@v4
         with:
-          name: slimcc-binary
-          path: slimcc   # 如果上面 ls 看到它不在根目录，或者叫别的名字，请把这里改掉
-          if-no-files-found: error   # 如果找不到文件直接报错，方便排查
+          name: slimcc-build
+          path: .   # 打包整个当前目录（包含可执行文件、include头文件、platform等）
+          if-no-files-found: error
